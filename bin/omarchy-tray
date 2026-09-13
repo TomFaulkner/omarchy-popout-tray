@@ -1,0 +1,215 @@
+#!/usr/bin/env bash
+
+# omarchy-tray: manage the tiles inside the popout tray
+#
+# Copy a plugin's bar entry into the tray, or take it out of the bar and
+# keep it reachable from the tray instead. Every write is backed up first
+# and followed by a shell config reload.
+
+set -euo pipefail
+
+CONFIG="$HOME/.config/omarchy/shell.json"
+PLUGIN_DIR="$HOME/.config/omarchy/plugins"
+TRAY="${TRAY_ID:-io.github.tomfaulkner.tray}"
+
+fail() {
+  echo "omarchy-tray: $*" >&2
+  exit 1
+}
+
+info() { echo "$*"; }
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  omarchy-tray list [--all]
+  omarchy-tray add <plugin-id> [--label NAME] [--type widget|action|command]
+                   [--move] [--tray TRAY-ID]
+  omarchy-tray remove <plugin-id> [--tray TRAY-ID]
+
+list
+  Every installed bar-widget plugin, where it is now, and whether it can
+  be embedded. NEEDS-SERVICE means the widget reads its own service via
+  bar.shell.serviceFor and will render inert in a tray.
+
+add
+  Append a tile to the tray. --move also drops the plugin from its bar
+  section and records it in plugins[] so it stays enabled; without it the
+  plugin stays in the bar and appears in both places.
+
+remove
+  Drop the tile. If the plugin is only in the tray (moved out of the bar),
+  it is also removed from plugins[], which disables it.
+USAGE
+}
+
+backup() {
+  cp "$CONFIG" "$CONFIG.bak.$(date +%s)"
+}
+
+reload() {
+  omarchy-shell shell reloadConfig >/dev/null 2>&1 || true
+}
+
+manifest_of() {
+  local id="$1"
+  local dir="$PLUGIN_DIR/$id"
+  [[ -f "$dir/manifest.json" ]] || fail "no installed plugin '$id' (looked in $dir)"
+  echo "$dir/manifest.json"
+}
+
+is_bar_widget() {
+  jq -e '.kinds | index("bar-widget")' "$1" >/dev/null 2>&1
+}
+
+# Any serviceFor call is a blocker when the tray is the caller: the answer is
+# always null for another plugin's id. The tray asking for its own id is fine.
+needs_service() {
+  [[ $1 == "$TRAY" ]] && return 1
+  grep -rqE "bar\.shell\.serviceFor|shell\.serviceFor" "$PLUGIN_DIR/$1" 2>/dev/null
+}
+
+location_of() {
+  jq -r --arg id "$1" '
+    ([.bar.layout | to_entries[] | select(any(.value[]?; .id == $id)) | .key][0] // "") as $section
+     | (if ([.plugins[]? | select(.id == $id)] | length) > 0 then "plugins" else "" end) as $plugins
+     | if $section != "" then "bar:" + $section
+       elif $plugins != "" then "plugins"
+       else "-" end
+  ' "$CONFIG"
+}
+
+in_tray() {
+  jq -r --arg id "$1" --arg tray "$TRAY" '
+    ([.bar.layout | to_entries[] | .value[]? | select(.id == $tray)
+     | (.items // [])[] | select(.id == $id) | .id][0] // "")
+  ' "$CONFIG"
+}
+
+kinds_of() {
+  jq -r '(.kinds // []) | join(",")' "$1"
+}
+
+cmd_list() {
+  local show_all=0
+  [[ ${1:-} == "--all" ]] && show_all=1
+
+  printf '%-42s %-12s %-8s %s\n' "PLUGIN" "WHERE" "IN TRAY" "NOTES"
+  for dir in "$PLUGIN_DIR"/*/; do
+    local manifest="$dir/manifest.json"
+    [[ -f $manifest ]] || continue
+    local id
+    id=$(jq -r '.id // empty' "$manifest")
+    [[ -n $id ]] || continue
+    is_bar_widget "$manifest" || continue
+
+    local where loc tray notes=""
+    where=$(location_of "$id")
+    loc=$(in_tray "$id")
+    needs_service "$id" && notes="NEEDS-SERVICE (inert)"
+    [[ $where == "-" ]] && notes="${notes:+$notes, }not enabled"
+
+    if ((show_all == 0)) && [[ $where == "-" && $loc == "" ]]; then
+      continue
+    fi
+    printf '%-42s %-12s %-8s %s\n' "$id" "$where" "$([[ -n $loc ]] && echo yes || echo -)" "$notes"
+  done
+}
+
+cmd_add() {
+  local id=""
+  local label="" type="widget" move=0
+  local arg
+  while (($#)); do
+    arg="$1"
+    case "$arg" in
+      -h | --help) usage; exit 0 ;;
+      --label) label="${2:-}"; shift 2 ;;
+      --type) type="${2:-}"; shift 2 ;;
+      --move) move=1; shift ;;
+      --tray) TRAY="${2:-}"; shift 2 ;;
+      -*) fail "unknown option $arg" ;;
+      *)
+        [[ -z $id ]] || fail "unexpected argument $arg"
+        id="$arg"; shift ;;
+    esac
+  done
+
+  [[ -n $id ]] || { usage; fail "plugin id is required"; }
+  [[ $type == widget || $type == action || $type == command || $type == qml ]] ||
+    fail "type must be widget, action, command, or qml"
+
+  local manifest
+  manifest=$(manifest_of "$id")
+  is_bar_widget "$manifest" || fail "$id has no bar-widget entry point"
+
+  if [[ $type == widget ]] && needs_service "$id"; then
+    info "warning: $id reads its own service via bar.shell.serviceFor; it will render inert in the tray"
+  fi
+
+  backup
+  local tmp
+  tmp=$(mktemp)
+  jq --arg id "$id" --arg tray "$TRAY" --arg label "$label" --arg type "$type" --argjson move "$move" '
+    def ensure_tray:
+      if ([.bar.layout | to_entries[] | .value[]? | select(.id == $tray)] | length) > 0 then .
+      else .bar.layout.right += [{id: $tray, label: "Tray", glyph: "▤", columns: 3, items: []}]
+      end;
+    def tile: {id: $id, type: $type} + (if $label == "" then {} else {label: $label} end);
+    def add_tile:
+      .bar.layout |= with_entries(.value |= map(
+        if .id == $tray
+        then .items = (((.items // []) | map(select(.id != $id))) + [tile])
+        else . end));
+    def move_out:
+      if $move then
+        .bar.layout |= with_entries(.value |= map(select(.id != $id)))
+        | if ([.plugins[]? | select(.id == $id)] | length) > 0 then .
+          else .plugins = ((.plugins // []) + [{id: $id}]) end
+      else . end;
+    ensure_tray | add_tile | move_out
+  ' "$CONFIG" >"$tmp" && mv "$tmp" "$CONFIG"
+  reload
+
+  info "added $id to $TRAY$([[ $move == 1 ]] && echo " (removed from the bar, kept enabled in plugins[])" || echo ' (left in the bar)')"
+}
+
+cmd_remove() {
+  local id=""
+  while (($#)); do
+    case "$1" in
+      -h | --help) usage; exit 0 ;;
+      --tray) TRAY="${2:-}"; shift 2 ;;
+      -*) fail "unknown option $1" ;;
+      *)
+        [[ -z $id ]] || fail "unexpected argument $1"
+        id="$1"; shift ;;
+    esac
+  done
+  [[ -n $id ]] || { usage; fail "plugin id is required"; }
+
+  backup
+  local tmp
+  tmp=$(mktemp)
+  jq --arg id "$id" --arg tray "$TRAY" '
+    def drop_tile:
+      .bar.layout |= with_entries(.value |= map(
+        if .id == $tray then .items = ((.items // []) | map(select(.id != $id)))
+        else . end));
+    def in_bar: ([.bar.layout | to_entries[] | .value[]? | select(.id == $id)] | length) > 0;
+    drop_tile
+    | if in_bar then .
+      else .plugins = ((.plugins // []) | map(select(.id != $id))) end
+  ' "$CONFIG" >"$tmp" && mv "$tmp" "$CONFIG"
+  reload
+
+  info "removed $id from $TRAY"
+}
+
+case "${1:-}" in
+  list | "") shift || true; cmd_list "$@" ;;
+  add) shift; cmd_add "$@" ;;
+  remove | rm) shift; cmd_remove "$@" ;;
+  -h | --help) usage ;;
+  *) fail "unknown command '$1'; try: omarchy-tray list" ;;
+esac

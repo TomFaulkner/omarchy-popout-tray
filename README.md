@@ -82,12 +82,38 @@ itself may be a symlink:
 
 ```sh
 ln -sfn "$PWD" ~/.config/omarchy/plugins/io.github.tomfaulkner.tray
+ln -sfn "$PWD/bin/omarchy-tray" ~/.local/bin/omarchy-tray
 omarchy-shell shell rescanPlugins
 omarchy plugin enable io.github.tomfaulkner.tray
 ```
 
 Then add the widget to a bar section (or let `enable` place it in `right`) and
-give it items — see below.
+give it items — with `omarchy-tray`, below, or by hand in `shell.json`.
+
+## Adding plugins to the tray
+
+```sh
+omarchy-tray list                       # what is installed, where, and what fits
+omarchy-tray add hegjon.unifi           # tile in the tray, plugin stays in the bar
+omarchy-tray add hegjon.unifi --move    # tile in the tray, out of the bar
+omarchy-tray remove hegjon.unifi
+```
+
+`list` marks `NEEDS-SERVICE` for widgets that read their own service through
+`bar.shell.serviceFor`: they load in the tray but render inert, because only
+the built-in bar can hand a widget its service.
+
+`--move` deletes the plugin's bar entry and records it in the top-level
+`plugins[]` array. That matters: a third-party bar widget is enabled by being
+somewhere in `shell.json`, and the tray's `items` do not count — without the
+`plugins[]` entry the widget is no longer registered and the tile comes up
+"not installed". `remove` drops that entry again when the plugin is not in the
+bar, which disables it.
+
+Both commands back up `shell.json` first and reload the shell config. To do it
+by hand, copy the plugin's bar entry into the tray's `items` and add
+`"type": "widget"`; to take it out of the bar as well, move `{"id": "<id>"}`
+into the top-level `plugins[]` array.
 
 ## Configuration
 
