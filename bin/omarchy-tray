@@ -8,9 +8,10 @@
 
 set -euo pipefail
 
-CONFIG="$HOME/.config/omarchy/shell.json"
+CONFIG="${TRAY_CONFIG:-$HOME/.config/omarchy/shell.json}"
 PLUGIN_DIR="$HOME/.config/omarchy/plugins"
-TRAY="${TRAY_ID:-io.github.tomfaulkner.tray}"
+TRAY_PLUGIN="io.github.tomfaulkner.tray"
+TRAY="${TRAY_ID:-$TRAY_PLUGIN}"
 
 fail() {
   echo "omarchy-tray: $*" >&2
@@ -44,7 +45,11 @@ USAGE
 }
 
 backup() {
-  cp "$CONFIG" "$CONFIG.bak.$(date +%s)"
+  local stamp base n=0
+  stamp=$(date +%Y%m%d%H%M%S)
+  base="$CONFIG.bak.$stamp"
+  while [[ -e $base-$n ]]; do n=$((n + 1)); done
+  cp "$CONFIG" "$base-$n"
 }
 
 reload() {
@@ -136,6 +141,8 @@ cmd_add() {
   done
 
   [[ -n $id ]] || { usage; fail "plugin id is required"; }
+  [[ $TRAY == "$TRAY_PLUGIN" ]] ||
+    fail "tray entry id must be $TRAY_PLUGIN; the manifest sets allowMultiple false"
   [[ $type == widget || $type == action || $type == command || $type == qml ]] ||
     fail "type must be widget, action, command, or qml"
 
@@ -162,7 +169,7 @@ cmd_add() {
         then .items = (((.items // []) | map(select(.id != $id))) + [tile])
         else . end));
     def move_out:
-      if $move then
+      if $move == 1 then
         .bar.layout |= with_entries(.value |= map(select(.id != $id)))
         | if ([.plugins[]? | select(.id == $id)] | length) > 0 then .
           else .plugins = ((.plugins // []) + [{id: $id}]) end
@@ -187,6 +194,8 @@ cmd_remove() {
     esac
   done
   [[ -n $id ]] || { usage; fail "plugin id is required"; }
+  [[ $TRAY == "$TRAY_PLUGIN" ]] ||
+    fail "tray entry id must be $TRAY_PLUGIN; the manifest sets allowMultiple false"
 
   backup
   local tmp

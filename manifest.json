@@ -15,7 +15,7 @@
     "displayName": "Tray",
     "description": "Popout tray for bar widgets, commands, and actions",
     "category": "Layout",
-    "allowMultiple": true,
+    "allowMultiple": false,
     "defaultSection": "right"
   }
 }

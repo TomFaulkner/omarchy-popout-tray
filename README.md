@@ -163,8 +163,11 @@ Per tile: `id` (defaults to `tileN`, duplicates get a suffix), `type`
 `exec`, `interval` (seconds, min 1), `onClick`, `onRightClick`,
 `onMiddleClick`, `source`.
 
-`allowMultiple` is on, so you can run two trays (e.g. "work" and "home") with
-different items. Each entry keeps its own settings; both share the service.
+One tray per bar: `allowMultiple` is off, and deliberately so. Every instance
+would push its own settings into the shared service and the last one to mount
+would win, and `updateEntryInline` can only address one entry per plugin id, so
+a second tray's settings would land on the first one. Grouping inside a single
+tray is the supported shape.
 
 ## Using it
 
