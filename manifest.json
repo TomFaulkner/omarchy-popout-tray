@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.tomfaulkner.tray",
+  "name": "Tray",
+  "version": "0.1.0",
+  "author": "Tom Faulkner",
+  "license": "MIT",
+  "description": "One bar icon that pops open a grid of tiles: another installed plugin's real bar widget, a polled command, a click action, or a QML file you load yourself.",
+  "kinds": ["service", "bar-widget"],
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Tray",
+    "description": "Popout tray for bar widgets, commands, and actions",
+    "category": "Layout",
+    "allowMultiple": true,
+    "defaultSection": "right"
+  }
+}

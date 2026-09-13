@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+count="$(checkupdates 2>/dev/null | wc -l || echo 0)"
+count="${count//$'\n'/}"
+if [ "${count:-0}" -gt 0 ]; then
+  printf '{"text":"%s","tooltip":"%s updates pending","class":"active"}\n' "$count" "$count"
+else
+  printf '{"text":"0","tooltip":"up to date","class":"idle"}\n'
+fi

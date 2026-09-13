@@ -1,0 +1,48 @@
+{
+  "id": "io.github.tomfaulkner.tray",
+  "label": "Tray",
+  "glyph": "⋯",
+  "columns": 4,
+  "tileWidth": 96,
+  "tileHeight": 76,
+  "showLabels": true,
+  "items": [
+    {
+      "id": "hass",
+      "type": "action",
+      "label": "Home",
+      "glyph": "",
+      "onClick": "omarchy-shell shell toggle hass '{}'"
+    },
+    {
+      "id": "remmina",
+      "type": "action",
+      "label": "Remmina",
+      "glyph": "",
+      "onClick": "omarchy-shell shell toggle io.github.tomfaulkner.remmina '{}'"
+    },
+    {
+      "id": "updates",
+      "type": "command",
+      "label": "Updates",
+      "glyph": "󰏖",
+      "exec": "~/.config/omarchy/tray/scripts/updates",
+      "interval": 900,
+      "onClick": "omarchy-pkg-update"
+    },
+    {
+      "id": "load",
+      "type": "command",
+      "label": "Load",
+      "glyph": "󰘚",
+      "exec": "~/.config/omarchy/tray/scripts/load",
+      "interval": 5
+    },
+    {
+      "id": "gpu",
+      "type": "qml",
+      "label": "GPU",
+      "source": "~/.config/omarchy/tray/tiles/gpu.qml"
+    }
+  ]
+}

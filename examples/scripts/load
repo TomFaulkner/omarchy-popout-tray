@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+load="$(awk '{print $1}' /proc/loadavg)"
+printf '{"text":"%s","tooltip":"1-minute load average %s","class":"%s"}\n' \
+  "$load" "$load" "$(awk -v l="$load" 'BEGIN { print (l > 2 ? "active" : "idle") }')"
