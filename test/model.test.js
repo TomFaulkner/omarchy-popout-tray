@@ -164,6 +164,10 @@ function testNames() {
   assert.strictEqual(Model.shortName({ id: "hass" }), "hass")
   // A label wins: it is the name the user chose.
   assert.strictEqual(Model.shortName({ id: "terminal.minesweeper", label: "Mines" }), "Mines")
+  // Normalization defaults label to the id; that is not a name.
+  assert.strictEqual(Model.shortName({ id: "terminal.minesweeper", label: "terminal.minesweeper" }), "minesweeper")
+  assert.strictEqual(Model.fullName({ id: "io.github.tomfaulkner.crossy-hop", label: "Crossy Hop" }),
+    "io.github.tomfaulkner.crossy-hop")
   assert.strictEqual(Model.fullName({ id: "terminal.minesweeper" }), "terminal.minesweeper")
   assert.strictEqual(Model.fullName({ id: "hass" }), "")
   assert.strictEqual(Model.detailFor({ group: "Games", type: "widget" }), "Games · widget")

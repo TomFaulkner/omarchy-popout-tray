@@ -174,9 +174,11 @@ function sections(items, groupOrder) {
 // minesweeper: the owner prefix is what makes a list of plugin ids unreadable,
 // and a label, when there is one, already says the useful part.
 function shortName(tile) {
-  var label = str(tile && tile.label, "")
-  if (label !== "") return label
   var id = str(tile && tile.id, "")
+  // A normalized tile always has a label — it falls back to the id — so a
+  // label only counts as a name when it is not just the id again.
+  var label = str(tile && tile.label, "")
+  if (label !== "" && label !== id) return label
   var parts = id.split(".")
   return parts.length > 1 ? parts[parts.length - 1] : id
 }
