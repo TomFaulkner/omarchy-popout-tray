@@ -84,6 +84,27 @@ Panel {
     }
   }
 
+  // Selecting a tile from the finder has to launch it, not just point the
+  // grid at it. The grid is mapped first so an embedded panel can resolve its
+  // anchor, then the tile is pressed, then the grid steps aside again unless
+  // the tile opened a panel of its own that lives inside it.
+  function pick(tileId) {
+    var wasOpen = opened
+    openAt(tileId)
+    Qt.callLater(function() {
+      var tileItem = root.tileItems[String(clampedCursor())]
+      if (tileItem && typeof tileItem.activate === "function") tileItem.activate(Qt.LeftButton)
+      Qt.callLater(function() {
+        if (!wasOpen && !tileOwnsOpenPanel(tileItem)) controller.hide()
+      })
+    })
+  }
+
+  function tileOwnsOpenPanel(tileItem) {
+    var item = tileItem ? tileItem.widgetItem : null
+    return !!item && item.opened === true
+  }
+
   function close() { controller.hide() }
   function toggle() { opened ? close() : open() }
 
@@ -149,6 +170,7 @@ Panel {
     function hide(): void { root.close() }
     function toggle(): void { root.toggle() }
     function focus(tileId: string): void { root.openAt(tileId) }
+    function pick(tileId: string): void { root.pick(tileId) }
     function find(query: string): void { root.openFinder(query) }
   }
 

@@ -95,10 +95,10 @@ Item {
     var tile = entry.tile
     root.close()
 
-    // The tile only lives inside the tray popout, so close the finder and
-    // hand the popout the cursor at that tile.
+    // The tile lives inside the tray popout, so hand the popout the cursor
+    // at that tile and press it: selecting a row has to launch the plugin.
     if (String(tile.type) === "widget") {
-      if (root.host && typeof root.host.openAt === "function") root.host.openAt(String(tile.id))
+      if (root.host && typeof root.host.pick === "function") root.host.pick(String(tile.id))
       return
     }
 

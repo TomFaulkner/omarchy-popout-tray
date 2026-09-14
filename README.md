@@ -179,13 +179,18 @@ bar lives on:
 omarchy-shell io.github.tomfaulkner.tray toggle          # open or close the grid
 omarchy-shell io.github.tomfaulkner.tray find ''         # fuzzy find over the tiles
 omarchy-shell io.github.tomfaulkner.tray find '{"query":"games"}'
-omarchy-shell io.github.tomfaulkner.tray focus luotao.pinball
+omarchy-shell io.github.tomfaulkner.tray focus luotao.pinball   # open the grid on one tile
+omarchy-shell io.github.tomfaulkner.tray pick luotao.pinball    # launch one tile
 ```
 
 The finder is a full-screen overlay: type to filter (subsequence match on
 label, group, and id), arrows to move, Enter to run, Esc to clear the filter
 and then close. Picking a widget tile closes the finder and opens the grid with
-the cursor on that tile; anything else runs its command.
+the cursor on that tile — `pick` is the same thing from a keybind — and
+anything else runs its command. A widget whose panel lives inside its tile
+(minesweeper, pinball) keeps the grid up, because closing the grid would take
+the panel with it; one that opens something of its own (crossy-hop, ostrich
+riders, quattrolitaire) leaves the grid closed.
 
 Each row shows the name you care about — the tile's label, or the last segment
 of its plugin id, so `io.github.tomfaulkner.crossy-hop` reads `crossy-hop` —
