@@ -157,8 +157,9 @@ shell hot-reloads it on save.
 | `tileWidth` / `tileHeight` | `96` / `76` | Tile size in px |
 | `showLabels` | `true` | Show each tile's label |
 | `items[]` | `[]` | The tiles |
+| `groups` | `[]` | Group headings, in the order they should appear |
 
-Per tile: `id` (defaults to `tileN`, duplicates get a suffix), `type`
+Per tile: `group` (heading name, empty for none), `id` (defaults to `tileN`, duplicates get a suffix), `type`
 (`command` / `action` / `qml`, unknown → `action`), `label`, `tooltip`, `glyph`,
 `exec`, `interval` (seconds, min 1), `onClick`, `onRightClick`,
 `onMiddleClick`, `source`.
@@ -168,6 +169,23 @@ would push its own settings into the shared service and the last one to mount
 would win, and `updateEntryInline` can only address one entry per plugin id, so
 a second tray's settings would land on the first one. Grouping inside a single
 tray is the supported shape.
+
+## Keybindings
+
+Both routes are the tray's own IPC target, so they work whichever monitor the
+bar lives on:
+
+```sh
+omarchy-shell io.github.tomfaulkner.tray toggle          # open or close the grid
+omarchy-shell io.github.tomfaulkner.tray find ''         # fuzzy find over the tiles
+omarchy-shell io.github.tomfaulkner.tray find '{"query":"games"}'
+omarchy-shell io.github.tomfaulkner.tray focus luotao.pinball
+```
+
+The finder is a full-screen overlay: type to filter (subsequence match on
+label, group, and id), arrows to move, Enter to run, Esc to clear the filter
+and then close. Picking a widget tile closes the finder and opens the grid with
+the cursor on that tile; anything else runs its command.
 
 ## Using it
 
@@ -179,6 +197,19 @@ tray is the supported shape.
 - **Left / right / middle click** a tile: that tile's `onClick` /
   `onRightClick` / `onMiddleClick`, falling back to `onClick`.
 
+### Groups
+
+Give tiles a `group` and they collect under a heading:
+
+```sh
+omarchy-tray add hegjon.unifi --group Servers
+omarchy-tray groups "Games,Servers,Media"
+```
+
+`groups` sets the heading order; tiles whose group is not listed keep the order
+they first appear in. Tiles with no group lead, so a tray that uses no groups
+reads top to bottom in the order its items were written.
+
 Command tiles are polled from the shared service, so one bar widget per monitor
 does not mean two sets of timers. Tiles whose `exec` fails simply keep their
 last text.
@@ -188,6 +219,8 @@ last text.
 | File | Role |
 |------|------|
 | `Service.qml` | Owns config, command polling, and action running |
+| `TrayFinder.qml` | Full-screen fuzzy finder over the tray's tiles |
+| `HostBarApi.qml` | The `bar` an embedded widget gets: forwarded to the real bar |
 | `BarWidget.qml` | The bar icon, its attention dot, and the popout |
 | `TrayPanel.qml` | KeyboardPanel popout: header, grid, keyboard nav |
 | `Tile.qml` | One tile: glyph, text, tooltip, hover, click |

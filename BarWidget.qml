@@ -8,8 +8,7 @@ Panel {
   id: root
 
   moduleName: "io.github.tomfaulkner.tray"
-  ipcTarget: "io.github.tomfaulkner.tray"
-  manageIpc: true
+  manageIpc: false
 
   readonly property bool vertical: bar ? bar.vertical === true : false
   property int trayAttempt: 0

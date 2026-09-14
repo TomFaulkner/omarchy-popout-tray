@@ -119,7 +119,50 @@ function testAttentionCount() {
   assert.strictEqual(Model.attentionCount(items, null), 0)
 }
 
+function testStringList() {
+  same(Model.stringList([" Games ", "Apps", "Games", "", null]), ["Games", "Apps"])
+  same(Model.stringList(null), [])
+}
+
+function testGroupOrdering() {
+  const items = [
+    { id: "a", group: "Games" },
+    { id: "b", group: "" },
+    { id: "c", group: "Servers" },
+    { id: "d", group: "Games" }
+  ]
+  same(Model.displayTiles(items, ["Servers", "Games"]).map(t => t.id), ["b", "c", "a", "d"])
+  const sections = Model.sections(items, ["Servers", "Games"])
+  same(sections.map(s => s.name), ["", "Servers", "Games"])
+  same(sections.map(s => s.items.map(r => r.tile.id)), [["b"], ["c"], ["a", "d"]])
+  // Positions follow the display order, not the written order.
+  same(sections.flatMap(s => s.items.map(r => r.position)), [0, 1, 2, 3])
+}
+
+function testFuzzy() {
+  assert.ok(Model.fuzzyScore("Crossy Hop", "crh") > 0)
+  assert.strictEqual(Model.fuzzyScore("Crossy Hop", "zzz"), 0)
+  assert.strictEqual(Model.fuzzyScore("Crossy Hop", ""), 1)
+  assert.ok(Model.fuzzyScore("Crossy Hop", "crossy") > Model.fuzzyScore("Crossy Hop", "crh"))
+}
+
+function testFilterTiles() {
+  const items = [
+    { id: "crossy", label: "Crossy Hop", group: "Games" },
+    { id: "unifi", label: "UniFi", group: "Servers" },
+    { id: "pinball", label: "Neon Cadet", group: "Games" }
+  ]
+  same(Model.filterTiles(items, "").map(r => r.tile.id), ["crossy", "unifi", "pinball"])
+  same(Model.filterTiles(items, "games").map(r => r.tile.id), ["crossy", "pinball"])
+  same(Model.filterTiles(items, "unifi").map(r => r.tile.id), ["unifi"])
+  same(Model.filterTiles(items, "nope"), [])
+}
+
 const tests = [
+  testStringList,
+  testGroupOrdering,
+  testFuzzy,
+  testFilterTiles,
   testQmlArrayLikeConfig,
   testDefaults,
   testItemTypes,

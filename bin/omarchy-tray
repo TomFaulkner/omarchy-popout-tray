@@ -24,9 +24,10 @@ usage() {
   cat <<'USAGE'
 Usage:
   omarchy-tray list [--all]
-  omarchy-tray add <plugin-id> [--label NAME] [--type widget|action|command]
-                   [--move] [--tray TRAY-ID]
+  omarchy-tray add <plugin-id> [--label NAME] [--group NAME]
+                   [--type widget|action|command] [--move] [--tray TRAY-ID]
   omarchy-tray remove <plugin-id> [--tray TRAY-ID]
+  omarchy-tray groups NAME,NAME,...        # order the group headings
 
 list
   Every installed bar-widget plugin, where it is now, and whether it can
@@ -123,13 +124,14 @@ cmd_list() {
 
 cmd_add() {
   local id=""
-  local label="" type="widget" move=0
+  local label="" group="" type="widget" move=0
   local arg
   while (($#)); do
     arg="$1"
     case "$arg" in
       -h | --help) usage; exit 0 ;;
       --label) label="${2:-}"; shift 2 ;;
+      --group) group="${2:-}"; shift 2 ;;
       --type) type="${2:-}"; shift 2 ;;
       --move) move=1; shift ;;
       --tray) TRAY="${2:-}"; shift 2 ;;
@@ -157,12 +159,14 @@ cmd_add() {
   backup
   local tmp
   tmp=$(mktemp)
-  jq --arg id "$id" --arg tray "$TRAY" --arg label "$label" --arg type "$type" --argjson move "$move" '
+  jq --arg id "$id" --arg tray "$TRAY" --arg label "$label" --arg group "$group" --arg type "$type" --argjson move "$move" '
     def ensure_tray:
       if ([.bar.layout | to_entries[] | .value[]? | select(.id == $tray)] | length) > 0 then .
       else .bar.layout.right += [{id: $tray, label: "Tray", glyph: "▤", columns: 3, items: []}]
       end;
-    def tile: {id: $id, type: $type} + (if $label == "" then {} else {label: $label} end);
+    def tile: {id: $id, type: $type}
+      + (if $label == "" then {} else {label: $label} end)
+      + (if $group == "" then {} else {group: $group} end);
     def add_tile:
       .bar.layout |= with_entries(.value |= map(
         if .id == $tray
@@ -215,8 +219,32 @@ cmd_remove() {
   info "removed $id from $TRAY"
 }
 
+cmd_groups() {
+  local csv="${1:-}"
+  [[ -n $csv ]] || { usage; fail "pass group names, comma separated"; }
+  [[ $TRAY == "$TRAY_PLUGIN" ]] ||
+    fail "tray entry id must be $TRAY_PLUGIN; the manifest sets allowMultiple false"
+
+  backup
+  local tmp
+  tmp=$(mktemp)
+  jq --arg csv "$csv" --arg tray "$TRAY" '
+    def names: [$csv | split(",") | .[] | (. // "") | sub("^ +"; "") | sub(" +$"; "") | select(. != "")];
+    def ensure_tray:
+      if ([.bar.layout | to_entries[] | .value[]? | select(.id == $tray)] | length) > 0 then .
+      else .bar.layout.right += [{id: $tray, label: "Tray", glyph: "▤", columns: 3, items: []}]
+      end;
+    ensure_tray
+    | .bar.layout |= with_entries(.value |= map(
+        if .id == $tray then .groups = names else . end))
+  ' "$CONFIG" >"$tmp" && mv "$tmp" "$CONFIG"
+  reload
+  info "group order set to $csv"
+}
+
 case "${1:-}" in
   list | "") shift || true; cmd_list "$@" ;;
+  groups) shift; cmd_groups "$@" ;;
   add) shift; cmd_add "$@" ;;
   remove | rm) shift; cmd_remove "$@" ;;
   -h | --help) usage ;;

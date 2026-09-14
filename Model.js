@@ -78,6 +78,7 @@ function normalizeItem(raw, index) {
     onRightClick: str(raw.onRightClick, ""),
     onMiddleClick: str(raw.onMiddleClick, ""),
     source: str(raw.source, ""),
+    group: str(raw.group, ""),
     autoSize: bool(raw.autoSize, true),
     settings: tileSettings(raw)
   }
@@ -95,6 +96,112 @@ function normalizeItems(raw) {
     items.push(item)
   }
   return items
+}
+
+function stringList(value) {
+  var out = []
+  if (!isList(value)) return out
+  var seen = {}
+  for (var i = 0; i < value.length; i++) {
+    var name = str(value[i], "").trim()
+    if (name === "" || seen[name]) continue
+    seen[name] = true
+    out.push(name)
+  }
+  return out
+}
+
+function groupNames(items, groupOrder) {
+  var present = []
+  var seen = {}
+  for (var i = 0; i < items.length; i++) {
+    var name = str(items[i].group, "")
+    if (seen[name]) continue
+    seen[name] = true
+    present.push(name)
+  }
+  var ordered = []
+  var taken = {}
+  // Ungrouped tiles lead, so a tray that names no groups reads top to bottom
+  // in the order its items were written.
+  if (present.indexOf("") !== -1) {
+    ordered.push("")
+    taken[""] = true
+  }
+  var order = stringList(groupOrder)
+  for (var o = 0; o < order.length; o++) {
+    if (present.indexOf(order[o]) === -1) continue
+    ordered.push(order[o])
+    taken[order[o]] = true
+  }
+  for (var p = 0; p < present.length; p++) {
+    if (taken[present[p]]) continue
+    ordered.push(present[p])
+  }
+  return ordered
+}
+
+function displayTiles(items, groupOrder) {
+  var out = []
+  if (!isList(items)) return out
+  var names = groupNames(items, groupOrder)
+  for (var n = 0; n < names.length; n++) {
+    for (var i = 0; i < items.length; i++) {
+      if (str(items[i].group, "") === names[n]) out.push(items[i])
+    }
+  }
+  return out
+}
+
+function sections(items, groupOrder) {
+  var out = []
+  if (!isList(items)) return out
+  var names = groupNames(items, groupOrder)
+  var position = 0
+  for (var n = 0; n < names.length; n++) {
+    var rows = []
+    for (var i = 0; i < items.length; i++) {
+      if (str(items[i].group, "") !== names[n]) continue
+      rows.push({ tile: items[i], position: position })
+      position += 1
+    }
+    out.push({ name: names[n], items: rows })
+  }
+  return out
+}
+
+function fuzzyScore(text, needle) {
+  var haystack = String(text || "").toLowerCase()
+  var query = String(needle || "").toLowerCase().trim()
+  if (query === "") return 1
+  var score = 0
+  var at = 0
+  var streak = 0
+  for (var q = 0; q < query.length; q++) {
+    var ch = query.charAt(q)
+    if (ch === " ") { streak = 0; continue }
+    var found = haystack.indexOf(ch, at)
+    if (found === -1) return 0
+    streak = found === at ? streak + 1 : 0
+    score += 10 + streak * 4 + (found === 0 || haystack.charAt(found - 1) === " " ? 6 : 0)
+    at = found + 1
+  }
+  return score
+}
+
+function filterTiles(tiles, query) {
+  var out = []
+  if (!isList(tiles)) return out
+  for (var i = 0; i < tiles.length; i++) {
+    var tile = tiles[i]
+    var label = str(tile.label, str(tile.id, ""))
+    var haystack = label + " " + str(tile.group, "") + " " + str(tile.id, "")
+    var score = fuzzyScore(haystack, query)
+    if (score <= 0) continue
+    out.push({ tile: tile, position: i, score: score })
+  }
+  out.sort(function(a, b) { return b.score - a.score || a.position - b.position })
+  return out
 }
 
 function tileSettings(raw) {
@@ -131,6 +238,7 @@ function normalizeSettings(settings) {
     tileHeight: int(raw.tileHeight, base.tileHeight, 40, 480),
     showLabels: bool(raw.showLabels, base.showLabels),
     tiles: raw.tiles && typeof raw.tiles === "object" && !Array.isArray(raw.tiles) ? raw.tiles : ({}),
+    groups: stringList(raw.groups),
     items: normalizeItems(raw.items)
   }
 }
@@ -233,6 +341,12 @@ if (typeof module !== "undefined" && module && module.exports) {
     commandFor: commandFor,
     tileSettings: tileSettings,
     mergedSettings: mergedSettings,
+    stringList: stringList,
+    groupNames: groupNames,
+    displayTiles: displayTiles,
+    sections: sections,
+    fuzzyScore: fuzzyScore,
+    filterTiles: filterTiles,
     gridColumns: gridColumns,
     gridRows: gridRows,
     moveCursor: moveCursor,

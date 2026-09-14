@@ -11,6 +11,8 @@ Item {
   property var state: ({ "text": "", "tooltip": "", "active": false })
   property var tray: null
   property var bar: null
+  property var host: null
+  property int position: -1
   property bool selected: false
   property bool showLabels: true
   property int tileWidth: 96
@@ -53,6 +55,9 @@ Item {
     return out
   }
 
+  readonly property bool selectedNow: root.host
+    ? (root.host.cursorActive && root.host.cursor === root.position)
+    : root.selected
   readonly property bool autoSize: root.isWidget
     && root.widgetItem !== null
     && (!root.tile || root.tile.autoSize !== false)
@@ -73,8 +78,13 @@ Item {
     ? Math.max(Style.space(26), (root.widgetItem ? root.widgetItem.implicitHeight : 0) + root.vPad * 2)
     : root.tileHeight
 
-  Component.onCompleted: root.ensureHostApi()
+  Component.onCompleted: {
+    if (root.host && root.position >= 0) root.host.registerTile(root.position, root)
+    root.ensureHostApi()
+  }
+  Component.onDestruction: if (root.host && root.position >= 0) root.host.unregisterTile(root.position, root)
   onBarChanged: root.ensureHostApi()
+  onHoveredChanged: if (root.hovered && root.host && root.position >= 0) root.host.cursor = root.position
   onWidgetSettingsChanged: Qt.callLater(root.injectWidget)
   onHostApiChanged: Qt.callLater(root.injectWidget)
 
@@ -102,19 +112,40 @@ Item {
       if (typeof item.toggle === "function") { item.toggle(); return }
       if (typeof item.open === "function") { item.open(); return }
       if (typeof item.play === "function") { item.play(); return }
+      // Most bar widgets are a button that runs something on press and expose
+      // no open/close at all. Pressing that button is what a click would do —
+      // the bar does exactly this when it handles a click itself.
+      var pressable = root.pressableTarget(item, 0)
+      if (pressable) {
+        pressable.triggerPress(button === undefined ? Qt.LeftButton : button)
+        return
+      }
+      return
     }
-    if (root.tileType === "widget") return
     root.activated(button)
+  }
+
+  function pressableTarget(item, depth) {
+    if (!item || depth > 6) return null
+    if (typeof item.triggerPress === "function"
+      && item.visible !== false && item.pressable !== false && item.concealed !== true)
+      return item
+    var children = item.children || []
+    for (var i = children.length - 1; i >= 0; i--) {
+      var found = root.pressableTarget(children[i], depth + 1)
+      if (found) return found
+    }
+    return null
   }
 
   BorderSurface {
     id: surface
 
     anchors.fill: parent
-    color: root.selected
+    color: root.selectedNow
       ? Style.normalFillFor(root.foreground, Color.accent)
       : (root.hovered && !root.isWidget ? Style.normalFillFor(root.foreground, root.foreground) : "transparent")
-    borderSpec: Border.flat(root.selected ? Color.accent : root.dim, 1)
+    borderSpec: Border.flat(root.selectedNow ? Color.accent : root.dim, 1)
     radius: Style.cornerRadius
     opacity: 0.9
   }
