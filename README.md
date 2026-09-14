@@ -1,5 +1,9 @@
 # Tray
 
+![Fuzzy finder over the tray's tiles](preview.png)
+
+![The tray popout: grouped tiles in the bar](screenshots/grid.png)
+
 One bar icon that pops open a grid of tiles. Everything in the tray is owned by
 this plugin — a polled command, a click action, or a QML file you point at — so
 the bar keeps a single small slot while the stuff you only need occasionally
@@ -74,6 +78,19 @@ process and not subject to the in-shell scope:
 Plugins that are bar-widget only (`unifi`, `stocks`, `portwatch`, `omarr`,
 `nvme-health`, `downloads`, …) have nothing to summon — they come in as a
 `command` or `qml` tile you write, or stay in the bar.
+
+## Remove
+
+```sh
+omarchy plugin disable io.github.tomfaulkner.tray   # takes it out of the bar
+rm ~/.config/omarchy/plugins/io.github.tomfaulkner.tray
+rm ~/.local/bin/omarchy-tray
+omarchy-shell shell rescanPlugins
+```
+
+Plugins you moved out of the bar with `omarchy-tray add --move` stay in the
+top-level `plugins[]` array; drop those entries to disable them too, since the
+tray's tiles do not count as being enabled.
 
 ## Install
 
