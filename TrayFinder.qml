@@ -89,14 +89,6 @@ Item {
     root.selectedIndex = index
   }
 
-  function detailFor(tile) {
-    var bits = []
-    if (String(tile.group || "") !== "") bits.push(String(tile.group))
-    bits.push(String(tile.type || "action"))
-    if (String(tile.tooltip || "") !== "") bits.push(String(tile.tooltip))
-    return bits.join(" · ")
-  }
-
   function activateIndex(index) {
     var entry = root.matches[index]
     if (!entry) return
@@ -236,37 +228,59 @@ Item {
               required property var modelData
 
               readonly property bool hasCursor: root.cursorActive && index === root.selectedIndex
+              readonly property string fullName: Model.fullName(row.modelData.tile)
 
               width: ListView.view.width
               height: root.rowHeight
               radius: root.cornerRadius
               color: hasCursor ? root.selectedBackground : "transparent"
 
-              Column {
+              Row {
                 anchors.fill: parent
                 anchors.leftMargin: Style.space(12)
                 anchors.rightMargin: Style.space(12)
                 anchors.topMargin: Style.space(8)
                 anchors.bottomMargin: Style.space(8)
-                spacing: Style.space(2)
+                spacing: Style.space(10)
 
-                Text {
-                  width: parent.width
-                  text: String(row.modelData.tile.label || row.modelData.tile.id || "")
-                  color: row.hasCursor ? root.selectedText : root.foreground
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.title
-                  elide: Text.ElideRight
+                Column {
+                  width: parent.width - fullNameText.width - parent.spacing
+                  spacing: Style.space(2)
+
+                  Text {
+                    width: parent.width
+                    text: Model.shortName(row.modelData.tile)
+                    color: row.hasCursor ? root.selectedText : root.foreground
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.title
+                    elide: Text.ElideRight
+                  }
+
+                  Text {
+                    width: parent.width
+                    text: Model.detailFor(row.modelData.tile)
+                    color: row.hasCursor ? root.selectedText : root.foreground
+                    opacity: 0.62
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.caption
+                    elide: Text.ElideRight
+                  }
                 }
 
                 Text {
-                  width: parent.width
-                  text: root.detailFor(row.modelData.tile)
+                  id: fullNameText
+
+                  anchors.verticalCenter: parent.verticalCenter
+                  width: row.fullName === ""
+                    ? 0
+                    : Math.min(implicitWidth, parent.width * 0.55)
+                  text: row.fullName
                   color: row.hasCursor ? root.selectedText : root.foreground
-                  opacity: 0.62
+                  opacity: 0.45
                   font.family: root.fontFamily
                   font.pixelSize: Style.font.caption
-                  elide: Text.ElideRight
+                  horizontalAlignment: Text.AlignRight
+                  elide: Text.ElideLeft
                 }
               }
 

@@ -170,6 +170,33 @@ function sections(items, groupOrder) {
   return out
 }
 
+// io.github.tomfaulkner.crossy-hop -> crossy-hop and terminal.minesweeper ->
+// minesweeper: the owner prefix is what makes a list of plugin ids unreadable,
+// and a label, when there is one, already says the useful part.
+function shortName(tile) {
+  var label = str(tile && tile.label, "")
+  if (label !== "") return label
+  var id = str(tile && tile.id, "")
+  var parts = id.split(".")
+  return parts.length > 1 ? parts[parts.length - 1] : id
+}
+
+function fullName(tile) {
+  var id = str(tile && tile.id, "")
+  var short = shortName(tile)
+  return id !== "" && id !== short ? id : ""
+}
+
+function detailFor(tile) {
+  var bits = []
+  var group = str(tile && tile.group, "")
+  if (group !== "") bits.push(group)
+  bits.push(str(tile && tile.type, "action"))
+  var tooltip = str(tile && tile.tooltip, "")
+  if (tooltip !== "") bits.push(tooltip)
+  return bits.join(" · ")
+}
+
 function fuzzyScore(text, needle) {
   var haystack = String(text || "").toLowerCase()
   var query = String(needle || "").toLowerCase().trim()
@@ -345,6 +372,9 @@ if (typeof module !== "undefined" && module && module.exports) {
     groupNames: groupNames,
     displayTiles: displayTiles,
     sections: sections,
+    shortName: shortName,
+    fullName: fullName,
+    detailFor: detailFor,
     fuzzyScore: fuzzyScore,
     filterTiles: filterTiles,
     gridColumns: gridColumns,

@@ -158,7 +158,20 @@ function testFilterTiles() {
   same(Model.filterTiles(items, "nope"), [])
 }
 
+function testNames() {
+  assert.strictEqual(Model.shortName({ id: "io.github.tomfaulkner.crossy-hop" }), "crossy-hop")
+  assert.strictEqual(Model.shortName({ id: "terminal.minesweeper" }), "minesweeper")
+  assert.strictEqual(Model.shortName({ id: "hass" }), "hass")
+  // A label wins: it is the name the user chose.
+  assert.strictEqual(Model.shortName({ id: "terminal.minesweeper", label: "Mines" }), "Mines")
+  assert.strictEqual(Model.fullName({ id: "terminal.minesweeper" }), "terminal.minesweeper")
+  assert.strictEqual(Model.fullName({ id: "hass" }), "")
+  assert.strictEqual(Model.detailFor({ group: "Games", type: "widget" }), "Games · widget")
+  assert.strictEqual(Model.detailFor({ type: "action" }), "action")
+}
+
 const tests = [
+  testNames,
   testStringList,
   testGroupOrdering,
   testFuzzy,

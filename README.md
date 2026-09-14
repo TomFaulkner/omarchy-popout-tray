@@ -187,6 +187,12 @@ label, group, and id), arrows to move, Enter to run, Esc to clear the filter
 and then close. Picking a widget tile closes the finder and opens the grid with
 the cursor on that tile; anything else runs its command.
 
+Each row shows the name you care about — the tile's label, or the last segment
+of its plugin id, so `io.github.tomfaulkner.crossy-hop` reads `crossy-hop` —
+with the group and type underneath and the full id dimmed on the right, elided
+from the left so the distinguishing tail stays visible. When the short name
+*is* the whole id (`hass`), nothing is repeated.
+
 ## Using it
 
 - **Left click** the bar icon: open or close the tray. `omarchy-shell shell
