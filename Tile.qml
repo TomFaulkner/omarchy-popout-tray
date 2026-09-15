@@ -68,6 +68,10 @@ Item {
   property var hostApi: null
   property var widgetItem: null
   property int widgetStatus: Loader.Null
+  property var linkedPanels: []
+
+  readonly property var hostAnchor: root.host && root.host.anchorItem
+    ? root.host.anchorItem : null
 
   implicitWidth: root.width
   implicitHeight: root.height
@@ -87,6 +91,10 @@ Item {
   onHoveredChanged: if (root.hovered && root.host && root.position >= 0) root.host.cursor = root.position
   onWidgetSettingsChanged: Qt.callLater(root.injectWidget)
   onHostApiChanged: Qt.callLater(root.injectWidget)
+  onWidgetItemChanged: {
+    anchorScan.shots = 0
+    anchorScan.restart()
+  }
 
   function ensureHostApi() {
     if (root.hostApi !== null || root.bar === null) return
@@ -104,10 +112,13 @@ Item {
     if ("bar" in item && root.hostApi) item.bar = root.hostApi
     if ("moduleName" in item) item.moduleName = root.tileId
     if ("settings" in item) item.settings = root.widgetSettings
+    root.syncHostPanels()
   }
 
   function activate(button) {
     var item = root.widgetItem
+    anchorScan.shots = 0
+    anchorScan.restart()
     if (item) {
       if (typeof item.toggle === "function") { item.toggle(); return }
       if (typeof item.open === "function") { item.open(); return }
@@ -123,6 +134,38 @@ Item {
       return
     }
     root.activated(button)
+  }
+
+  function collectPanels(object, out, depth) {
+    if (!object || depth > 8) return
+    var kids = []
+    try {
+      kids = object.data && object.data.length ? object.data : (object.children || [])
+    } catch (e) { return }
+    for (var i = 0; i < kids.length; i++) {
+      var child = kids[i]
+      if (!child) continue
+      var isPanel = false
+      try { isPanel = child.cardOrigin !== undefined } catch (e) { isPanel = false }
+      if (isPanel) out.push(child)
+      collectPanels(child, out, depth + 1)
+    }
+  }
+
+  function syncHostPanels() {
+    if (!root.hostAnchor) return
+    var panels = []
+    collectPanels(root.widgetItem, panels, 0)
+    for (var i = 0; i < panels.length; i++) root.hostPanel(panels[i])
+  }
+
+  function hostPanel(panel) {
+    if (!panel || root.linkedPanels.indexOf(panel) !== -1) return
+    var next = root.linkedPanels.slice()
+    next.push(panel)
+    root.linkedPanels = next
+    anchorGuard.createObject(root, { target: panel })
+    if (panel.anchorItem !== root.hostAnchor) panel.anchorItem = root.hostAnchor
   }
 
   function pressableTarget(item, depth) {
@@ -258,5 +301,33 @@ Item {
     id: hostApiComponent
 
     HostBarApi { }
+  }
+
+  Component {
+    id: anchorGuard
+
+    Connections {
+      ignoreUnknownSignals: true
+
+      function onAnchorItemChanged() {
+        if (!target || !root.hostAnchor) return
+        if (target.anchorItem !== root.hostAnchor) target.anchorItem = root.hostAnchor
+      }
+    }
+  }
+
+  Timer {
+    id: anchorScan
+
+    interval: 120
+    repeat: true
+    running: false
+    property int shots: 0
+
+    onTriggered: {
+      root.syncHostPanels()
+      anchorScan.shots += 1
+      if (anchorScan.shots >= 5) anchorScan.stop()
+    }
   }
 }
