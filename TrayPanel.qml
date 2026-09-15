@@ -50,6 +50,8 @@ Panel {
   property int cursor: 0
   property bool cursorActive: true
   property var tileItems: ({})
+  property var flickItem: null
+  property var flickContentItem: null
 
   function registerTile(position, tile) {
     var next = ({})
@@ -149,10 +151,12 @@ Panel {
   }
 
   function revealCursor() {
-    if (!flick || !flickContent) return
+    var flick = root.flickItem
+    var content = root.flickContentItem
+    if (!flick || !content) return
     var tileItem = root.tileItems[String(clampedCursor())]
     if (!tileItem) return
-    var point = tileItem.mapToItem(flickContent, 0, 0)
+    var point = tileItem.mapToItem(content, 0, 0)
     if (point.y < flick.contentY)
       flick.contentY = Math.max(0, point.y - Style.space(8))
     else if (point.y + tileItem.height > flick.contentY + flick.height)
@@ -223,6 +227,15 @@ Panel {
           clip: true
           boundsBehavior: Flickable.StopAtBounds
           flickableDirection: Flickable.VerticalFlick
+
+          Component.onCompleted: {
+            root.flickItem = flick
+            root.flickContentItem = flickContent
+          }
+          Component.onDestruction: {
+            root.flickItem = null
+            root.flickContentItem = null
+          }
 
           Column {
             id: flickContent
