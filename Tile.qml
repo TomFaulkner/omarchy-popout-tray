@@ -86,7 +86,21 @@ Item {
     if (root.host && root.position >= 0) root.host.registerTile(root.position, root)
     root.ensureHostApi()
   }
-  Component.onDestruction: if (root.host && root.position >= 0) root.host.unregisterTile(root.position, root)
+  Component.onDestruction: {
+    var host = root.host
+    if (host !== null && root.position >= 0) {
+      try {
+        if (host.tileItems) host.unregisterTile(root.position, root)
+      } catch (e) { }
+    }
+    var item = root.widgetItem
+    if (item) {
+      try {
+        if ("bar" in item) item.bar = null
+      } catch (e) { }
+    }
+    if (root.hostApi) root.hostApi.destroy(1000)
+  }
   onBarChanged: root.ensureHostApi()
   onHoveredChanged: if (root.hovered && root.host && root.position >= 0) root.host.cursor = root.position
   onWidgetSettingsChanged: Qt.callLater(root.injectWidget)
